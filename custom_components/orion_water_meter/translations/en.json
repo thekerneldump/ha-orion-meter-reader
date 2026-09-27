@@ -34,6 +34,7 @@
     "sensor": {
       "total_water": { "name": "Total water" },
       "usage_since_snapshot": { "name": "Usage since endpoint snapshot" },
+      "interval_usage": { "name": "Interval usage" },
       "last_seen": { "name": "Last seen" },
       "frequency": { "name": "Frequency" },
       "signal_strength": { "name": "Signal strength" },

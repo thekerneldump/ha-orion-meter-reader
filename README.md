@@ -39,6 +39,7 @@ Each meter provides:
 
 - Total water
 - Usage since endpoint snapshot
+- Usage since the previous successful poll
 - Leak state
 - Last seen time
 - Frequency, RSSI, signal-to-noise ratio, and noise diagnostics
@@ -64,8 +65,11 @@ After installing or updating the integration and restarting Home Assistant:
 
 Each card includes:
 
-- Selectable 30-minute, 1-hour, 3-hour, 6-hour, 12-hour, and 24-hour ranges
+- Quick ranges for 30 minutes, 1 hour, 3 hours, 6 hours, 12 hours, 1 day,
+  1 week, and 1 month
+- Editable start and end date-and-time fields
 - A usage graph with intervals that adapt to the selected range
+- Labeled axes, grid lines, a legend, and hover values
 - Total usage for the selected range
 - Usage normalized to an hourly pace
 - A rolling seven-day daily average
@@ -77,7 +81,8 @@ The graph uses Home Assistant recorder history. The seven-day average displays
 after a full seven days of history are available for the meter. Recent ranges
 use five-minute statistics so short bursts remain visible; longer or older
 ranges automatically use the finest practical long-term-statistics interval.
-Select **Full history** to open the entity in Home Assistant History.
+Select **Interval usage history** to open the interval usage entity in Home
+Assistant History.
 
 ## Security
 

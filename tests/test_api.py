@@ -110,5 +110,33 @@ class UrlTests(unittest.TestCase):
             helpers.normalize_url("ftp://reader.local")
 
 
+class IntervalUsageTests(unittest.TestCase):
+    def test_first_reading_has_no_interval(self):
+        readings = {"example-meter": {"reading": 1000}}
+
+        result = helpers.add_interval_usage(readings, None)
+
+        self.assertIsNone(result["example-meter"]["interval_usage_gallons"])
+
+    def test_calculates_usage_from_raw_counter(self):
+        readings = {"example-meter": {"reading": 1017}}
+        previous = {"example-meter": {"reading": 1000}}
+
+        result = helpers.add_interval_usage(readings, previous)
+
+        self.assertEqual(
+            result["example-meter"]["interval_usage_gallons"],
+            1.7,
+        )
+
+    def test_rejects_negative_reset_delta(self):
+        readings = {"example-meter": {"reading_gallons": 50.0}}
+        previous = {"example-meter": {"reading_gallons": 100.0}}
+
+        result = helpers.add_interval_usage(readings, previous)
+
+        self.assertIsNone(result["example-meter"]["interval_usage_gallons"])
+
+
 if __name__ == "__main__":
     unittest.main()

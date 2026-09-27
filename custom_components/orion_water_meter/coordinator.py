@@ -11,6 +11,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 
 from .api import OrionReadings, OrionWaterMeterApi, OrionWaterMeterError
 from .const import DOMAIN
+from .helpers import add_interval_usage
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -37,6 +38,7 @@ class OrionWaterMeterCoordinator(DataUpdateCoordinator[OrionReadings]):
 
     async def _async_update_data(self) -> OrionReadings:
         try:
-            return await self.api.async_readings()
+            readings = await self.api.async_readings()
         except OrionWaterMeterError as err:
             raise UpdateFailed(f"Unable to fetch readings: {err}") from err
+        return add_interval_usage(readings, self.data)

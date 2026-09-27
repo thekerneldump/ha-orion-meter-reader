@@ -89,6 +89,14 @@ SENSORS: tuple[OrionSensorDescription, ...] = (
         value_fn=_water_value,
     ),
     OrionSensorDescription(
+        key="interval_usage_gallons",
+        translation_key="interval_usage",
+        device_class=SensorDeviceClass.WATER,
+        native_unit_of_measurement=UnitOfVolume.GALLONS,
+        suggested_display_precision=1,
+        value_fn=_water_value,
+    ),
+    OrionSensorDescription(
         key="ingested_at",
         translation_key="last_seen",
         device_class=SensorDeviceClass.TIMESTAMP,

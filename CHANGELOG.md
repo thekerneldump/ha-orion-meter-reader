@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.0.4
+
+- Add a per-meter interval usage entity.
+- Add date-and-time inputs and quick ranges from 30 minutes through one month.
+- Add labeled axes, grid lines, a legend, and hover values to the usage chart.
+- Link the chart to the interval usage entity's history.
+
 ## 0.0.3
 
 - Add an interval-usage line graph with on-dashboard date pickers.

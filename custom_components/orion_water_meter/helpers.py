@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from typing import Any
 from urllib.parse import urlsplit, urlunsplit
 
 
@@ -37,3 +38,41 @@ def normalize_url(value: str) -> str:
     netloc = f"{host}:{port}" if port is not None else host
     path = parsed.path.rstrip("/")
     return urlunsplit((parsed.scheme.lower(), netloc, path, "", ""))
+
+
+def _reading_gallons(reading: dict[str, Any] | None) -> float | None:
+    """Return a packet's cumulative reading in gallons."""
+    if not reading:
+        return None
+    converted = reading.get("reading_gallons")
+    if isinstance(converted, (int, float)) and not isinstance(converted, bool):
+        return float(converted)
+    raw = reading.get("reading")
+    if isinstance(raw, (int, float)) and not isinstance(raw, bool):
+        return float(raw) / 10
+    return None
+
+
+def add_interval_usage(
+    readings: dict[str, dict[str, Any]],
+    previous: dict[str, dict[str, Any]] | None,
+) -> dict[str, dict[str, Any]]:
+    """Add usage since the previous successful poll to each packet."""
+    result: dict[str, dict[str, Any]] = {}
+    previous = previous or {}
+
+    for meter_id, reading in readings.items():
+        packet = dict(reading)
+        current_value = _reading_gallons(reading)
+        previous_value = _reading_gallons(previous.get(meter_id))
+        interval_usage = None
+        if (
+            current_value is not None
+            and previous_value is not None
+            and current_value >= previous_value
+        ):
+            interval_usage = round(current_value - previous_value, 6)
+        packet["interval_usage_gallons"] = interval_usage
+        result[meter_id] = packet
+
+    return result

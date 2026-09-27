@@ -3,6 +3,7 @@
     "sensor": {
       "total_water": { "default": "mdi:counter" },
       "usage_since_snapshot": { "default": "mdi:water" },
+      "interval_usage": { "default": "mdi:water-plus" },
       "last_seen": { "default": "mdi:clock-outline" },
       "frequency": { "default": "mdi:sine-wave" },
       "signal_strength": { "default": "mdi:signal" },
