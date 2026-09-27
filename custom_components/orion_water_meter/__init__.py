@@ -18,6 +18,7 @@ from .const import (
     PLATFORMS,
 )
 from .coordinator import OrionWaterMeterCoordinator
+from .frontend import async_register_frontend
 
 
 @dataclass
@@ -35,6 +36,8 @@ async def async_setup_entry(
     hass: HomeAssistant, entry: OrionWaterMeterConfigEntry
 ) -> bool:
     """Set up Orion Water Meter from a config entry."""
+    await async_register_frontend(hass)
+
     api = OrionWaterMeterApi(async_get_clientsession(hass), entry.data[CONF_URL])
     coordinator = OrionWaterMeterCoordinator(
         hass,

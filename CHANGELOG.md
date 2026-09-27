@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.0.2
+
+- Add an automatically discovered water-usage dashboard strategy.
+- Add selectable 30-minute through 24-hour usage graphs.
+- Add selected-period usage, hourly pace, and rolling daily-average summaries.
+
 ## 0.0.1
 
 Initial release.

@@ -50,6 +50,30 @@ The endpoint snapshot can roll at a time other than civil midnight. For that
 reason, the integration labels the derived value **Usage since endpoint
 snapshot**, not daily usage.
 
+## KD Water Meter dashboard
+
+The integration includes the **KD Water Meter** dashboard strategy. It discovers
+enabled Orion total-water entities automatically and creates one usage card for
+each meter.
+
+After installing or updating the integration and restarting Home Assistant:
+
+1. Open **Settings > Dashboards**.
+2. Select **Add dashboard**.
+3. Choose **KD Water Meter** under **Community dashboards**.
+
+Each card includes:
+
+- Selectable 30-minute, 1-hour, 3-hour, 6-hour, 12-hour, and 24-hour ranges
+- A usage graph with intervals that adapt to the selected range
+- Total usage for the selected range
+- Usage normalized to an hourly pace
+- A rolling seven-day daily average
+- The latest cumulative meter reading
+
+The graph uses Home Assistant recorder history. The seven-day average displays
+after a full seven days of history are available for the meter.
+
 ## Security
 
 The meter reader API does not provide authentication. Keep it on a trusted local
