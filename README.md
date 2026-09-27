@@ -70,6 +70,7 @@ Each card includes:
 - Editable start and end date-and-time fields
 - A usage graph with one point per recorded meter increase
 - Labeled axes, grid lines, a legend, and hover values
+- A wider responsive layout with edge-aware chart tooltips
 - Total usage for the selected range
 - Usage normalized to an hourly pace
 - A rolling seven-day daily average

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.0.6
+
+- Widen dashboard cards with a centered panel layout.
+- Keep chart tooltips visible near the left and right edges.
+
 ## 0.0.5
 
 - Plot one line-graph point per recorded meter increase.

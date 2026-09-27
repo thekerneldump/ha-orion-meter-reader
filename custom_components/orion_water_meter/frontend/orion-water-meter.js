@@ -345,6 +345,8 @@ class OrionWaterUsageCard extends HTMLElement {
       <style>
         :host {
           display: block;
+          margin: 0 auto;
+          max-width: 900px;
         }
         ha-card {
           padding: 20px;
@@ -858,8 +860,16 @@ class OrionWaterHistoryCard extends HTMLElement {
       tooltip.textContent = `${formatter.format(
         new Date(point.time),
       )} · ${formatVolume(point.value, unit)}`;
-      tooltip.style.left = `${(point.x / this._chartGeometry.width) * 100}%`;
+      const horizontalPosition = point.x / this._chartGeometry.width;
+      tooltip.style.left = `${horizontalPosition * 100}%`;
       tooltip.style.top = `${(point.y / this._chartGeometry.height) * 100}%`;
+      tooltip.style.transform = `translate(${
+        horizontalPosition < 0.25
+          ? "0"
+          : horizontalPosition > 0.75
+            ? "-100%"
+            : "-50%"
+      }, calc(-100% - 10px))`;
       tooltip.hidden = false;
     });
     chart.addEventListener("pointerleave", () => {
@@ -912,6 +922,8 @@ class OrionWaterHistoryCard extends HTMLElement {
       <style>
         :host {
           display: block;
+          margin: 0 auto;
+          max-width: 900px;
         }
         ha-card {
           overflow: hidden;
@@ -1276,6 +1288,9 @@ class OrionWaterMeterDashboardStrategy extends HTMLElement {
           },
         ];
 
+    const panelCard =
+      cards.length === 1 ? cards[0] : { type: "vertical-stack", cards };
+
     return {
       title: config.title || "KD Water Meter",
       views: [
@@ -1283,7 +1298,8 @@ class OrionWaterMeterDashboardStrategy extends HTMLElement {
           title: "Water",
           path: "water",
           icon: "mdi:water",
-          cards,
+          panel: true,
+          cards: [panelCard],
         },
       ],
     };
