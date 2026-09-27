@@ -70,9 +70,14 @@ Each card includes:
 - Usage normalized to an hourly pace
 - A rolling seven-day daily average
 - The latest cumulative meter reading
+- A line graph with start and end date pickers directly on the dashboard
+- Automatic five-minute, hourly, daily, weekly, or monthly resolution
 
 The graph uses Home Assistant recorder history. The seven-day average displays
-after a full seven days of history are available for the meter.
+after a full seven days of history are available for the meter. Recent ranges
+use five-minute statistics so short bursts remain visible; longer or older
+ranges automatically use the finest practical long-term-statistics interval.
+Select **Full history** to open the entity in Home Assistant History.
 
 ## Security
 

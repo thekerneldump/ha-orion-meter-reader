@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.0.3
+
+- Add an interval-usage line graph with on-dashboard date pickers.
+- Automatically preserve granular resolution for short and recent ranges.
+- Add a link from the graph to full entity history.
+
 ## 0.0.2
 
 - Add an automatically discovered water-usage dashboard strategy.

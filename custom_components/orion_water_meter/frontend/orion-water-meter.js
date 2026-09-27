@@ -1,5 +1,6 @@
 const DOMAIN = "orion_water_meter";
 const CARD_TYPE = "orion-water-usage-card";
+const HISTORY_CARD_TYPE = "orion-water-history-card";
 const STRATEGY_TYPE = "orion-water-meter";
 const DAY_MS = 24 * 60 * 60 * 1000;
 const HISTORY_DAYS = 7;
@@ -507,6 +508,459 @@ class OrionWaterUsageCard extends HTMLElement {
   }
 }
 
+function dateInputValue(date) {
+  const adjusted = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return adjusted.toISOString().slice(0, 10);
+}
+
+function localDate(value) {
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(year, month - 1, day);
+}
+
+function statisticsPeriod(start, end, now) {
+  const span = end - start;
+  const age = now - start;
+  if (span <= 10 * DAY_MS && age <= 10 * DAY_MS) {
+    return "5minute";
+  }
+  if (span <= 90 * DAY_MS) {
+    return "hour";
+  }
+  if (span <= 2 * 365 * DAY_MS) {
+    return "day";
+  }
+  if (span <= 5 * 365 * DAY_MS) {
+    return "week";
+  }
+  return "month";
+}
+
+function periodLabel(period) {
+  return {
+    "5minute": "5-minute",
+    hour: "hourly",
+    day: "daily",
+    week: "weekly",
+    month: "monthly",
+  }[period];
+}
+
+class OrionWaterHistoryCard extends HTMLElement {
+  constructor() {
+    super();
+    this.attachShadow({ mode: "open" });
+    this._rows = null;
+    this._loading = false;
+    this._error = null;
+    this._requestSequence = 0;
+    this._lastFetchAt = 0;
+    this._observedUpdate = null;
+  }
+
+  setConfig(config) {
+    if (!config.entity) {
+      throw new Error("Orion Water History Card requires an entity");
+    }
+    this._config = { ...config };
+    const today = new Date();
+    this._startDate = config.start_date || dateInputValue(today);
+    this._endDate = config.end_date || dateInputValue(today);
+    this._rows = null;
+    this._render();
+  }
+
+  set hass(hass) {
+    this._hass = hass;
+    const state = this._config ? hass.states[this._config.entity] : null;
+    const update = state?.last_updated || null;
+    const stale = Date.now() - this._lastFetchAt >= 5 * 60_000;
+
+    if (
+      this._config &&
+      !this._loading &&
+      (!this._rows || (update !== this._observedUpdate && stale))
+    ) {
+      this._loadStatistics();
+      return;
+    }
+    this._render();
+  }
+
+  getCardSize() {
+    return 5;
+  }
+
+  _selectedRange() {
+    const start = localDate(this._startDate);
+    const end = localDate(this._endDate);
+    end.setDate(end.getDate() + 1);
+    const now = new Date();
+    if (end > now) {
+      end.setTime(now.getTime());
+    }
+    return { start, end, now };
+  }
+
+  async _loadStatistics() {
+    if (!this._hass || !this._config || this._loading) {
+      return;
+    }
+
+    const { start, end, now } = this._selectedRange();
+    if (
+      !Number.isFinite(start.getTime()) ||
+      !Number.isFinite(end.getTime()) ||
+      start >= end
+    ) {
+      this._error = "Choose an end date on or after the start date.";
+      this._render();
+      return;
+    }
+
+    const sequence = ++this._requestSequence;
+    const period = statisticsPeriod(start, end, now);
+    this._loading = true;
+    this._error = null;
+    this._render();
+
+    try {
+      const result = await this._hass.callWS({
+        type: "recorder/statistics_during_period",
+        start_time: start.toISOString(),
+        end_time: end.toISOString(),
+        statistic_ids: [this._config.entity],
+        period,
+        types: ["change"],
+      });
+      if (sequence !== this._requestSequence) {
+        return;
+      }
+      const rawRows = result?.[this._config.entity] || [];
+      this._rows = rawRows
+        .map((row) => ({
+          time: Number(row.start),
+          value: Math.max(0, Number(row.change)),
+        }))
+        .filter(
+          (row) => Number.isFinite(row.time) && Number.isFinite(row.value),
+        );
+      this._period = period;
+      this._observedUpdate =
+        this._hass.states[this._config.entity]?.last_updated || null;
+      this._lastFetchAt = Date.now();
+    } catch (_error) {
+      if (sequence === this._requestSequence) {
+        this._error = "Water statistics could not be loaded.";
+      }
+    } finally {
+      if (sequence === this._requestSequence) {
+        this._loading = false;
+        this._render();
+      }
+    }
+  }
+
+  _renderLine(rows, start, end, unit) {
+    if (!rows.length) {
+      return '<div class="message">No statistics are available for this date range yet.</div>';
+    }
+
+    const width = 1000;
+    const height = 250;
+    const left = 36;
+    const right = 12;
+    const top = 14;
+    const bottom = 30;
+    const chartWidth = width - left - right;
+    const chartHeight = height - top - bottom;
+    const maximum = Math.max(...rows.map((row) => row.value), 0);
+    const scaleMaximum = maximum || 1;
+    const pointFor = (row) => {
+      const x = left + ((row.time - start) / (end - start)) * chartWidth;
+      const y = top + chartHeight - (row.value / scaleMaximum) * chartHeight;
+      return { x: Math.max(left, Math.min(width - right, x)), y };
+    };
+    const points = rows.map(pointFor);
+    const polyline = points.map((point) => `${point.x},${point.y}`).join(" ");
+    const area =
+      `${left},${top + chartHeight} ` +
+      polyline +
+      ` ${width - right},${top + chartHeight}`;
+    const grid = [0, 0.25, 0.5, 0.75, 1]
+      .map((ratio) => {
+        const y = top + chartHeight * ratio;
+        return `<line x1="${left}" y1="${y}" x2="${width - right}" y2="${y}" />`;
+      })
+      .join("");
+    const dots =
+      rows.length <= 300
+        ? rows
+            .map((row, index) => {
+              const point = points[index];
+              return `<circle cx="${point.x}" cy="${point.y}" r="3">
+                <title>${escapeHtml(formatVolume(row.value, unit))}</title>
+              </circle>`;
+            })
+            .join("")
+        : "";
+    const axisFormatter = new Intl.DateTimeFormat(undefined, {
+      month: "short",
+      day: "numeric",
+      hour: this._period === "5minute" ? "numeric" : undefined,
+      minute: this._period === "5minute" ? "2-digit" : undefined,
+      timeZone: this._hass?.config?.time_zone,
+    });
+
+    return `
+      <div class="chart-heading">
+        <span>Interval usage</span>
+        <span class="muted">highest ${escapeHtml(
+          formatVolume(maximum, unit),
+        )}</span>
+      </div>
+      <svg
+        class="line-chart"
+        viewBox="0 0 ${width} ${height}"
+        preserveAspectRatio="none"
+        role="img"
+        aria-label="Water usage line graph"
+      >
+        <g class="grid">${grid}</g>
+        <polygon class="area" points="${area}" />
+        <polyline class="line" points="${polyline}" />
+        <g class="dots">${dots}</g>
+      </svg>
+      <div class="axis">
+        <span>${escapeHtml(axisFormatter.format(new Date(start)))}</span>
+        <span>${escapeHtml(
+          axisFormatter.format(new Date((start + end) / 2)),
+        )}</span>
+        <span>${escapeHtml(axisFormatter.format(new Date(end)))}</span>
+      </div>
+    `;
+  }
+
+  _render() {
+    if (!this.shadowRoot || !this._config) {
+      return;
+    }
+
+    const state = this._hass?.states?.[this._config.entity];
+    const title =
+      this._config.title ||
+      state?.attributes?.friendly_name ||
+      "Water usage history";
+    const unit = state?.attributes?.unit_of_measurement || "gal";
+    const { start, end } = this._selectedRange();
+    const rows = this._rows || [];
+    const total = rows.reduce((sum, row) => sum + row.value, 0);
+    const historyUrl = `/history?entity_id=${encodeURIComponent(
+      this._config.entity,
+    )}&back=1`;
+
+    let body;
+    if (this._error) {
+      body = `<div class="message">${escapeHtml(this._error)}</div>`;
+    } else if (this._loading && !this._rows) {
+      body = '<div class="message">Loading water statistics…</div>';
+    } else {
+      body = `
+        <div class="summary">
+          <span>
+            <small>Usage in range</small>
+            <strong>${escapeHtml(formatVolume(total, unit))}</strong>
+          </span>
+          <span>
+            <small>Resolution</small>
+            <strong>${escapeHtml(periodLabel(this._period || "5minute"))}</strong>
+          </span>
+        </div>
+        ${this._renderLine(rows, start.getTime(), end.getTime(), unit)}
+      `;
+    }
+
+    this.shadowRoot.innerHTML = `
+      <style>
+        :host {
+          display: block;
+        }
+        ha-card {
+          overflow: hidden;
+          padding: 20px;
+        }
+        .header,
+        .controls,
+        .summary,
+        .chart-heading,
+        .axis {
+          display: flex;
+          gap: 12px;
+          justify-content: space-between;
+        }
+        .header {
+          align-items: center;
+          margin-bottom: 16px;
+        }
+        h2 {
+          color: var(--primary-text-color);
+          font-size: 20px;
+          font-weight: 500;
+          line-height: 1.2;
+          margin: 0;
+        }
+        a {
+          color: var(--primary-color);
+          font-size: 13px;
+          text-decoration: none;
+          white-space: nowrap;
+        }
+        a:hover {
+          text-decoration: underline;
+        }
+        .controls {
+          background: var(--secondary-background-color);
+          border-radius: 12px;
+          justify-content: flex-start;
+          margin-bottom: 14px;
+          padding: 10px 12px;
+        }
+        label {
+          color: var(--secondary-text-color);
+          display: flex;
+          flex: 1;
+          flex-direction: column;
+          font-size: 11px;
+          gap: 4px;
+          min-width: 0;
+        }
+        input {
+          background: var(--card-background-color);
+          border: 1px solid var(--divider-color);
+          border-radius: 8px;
+          box-sizing: border-box;
+          color: var(--primary-text-color);
+          font: inherit;
+          max-width: 190px;
+          min-height: 36px;
+          padding: 6px 8px;
+          width: 100%;
+        }
+        .summary {
+          margin-bottom: 18px;
+        }
+        .summary span {
+          flex: 1;
+        }
+        small,
+        .muted {
+          color: var(--secondary-text-color);
+          display: block;
+          font-size: 12px;
+        }
+        strong {
+          color: var(--primary-text-color);
+          display: block;
+          font-size: 18px;
+          font-weight: 500;
+          margin-top: 4px;
+        }
+        .chart-heading {
+          color: var(--primary-text-color);
+          font-size: 14px;
+          margin-bottom: 6px;
+        }
+        .line-chart {
+          display: block;
+          height: 220px;
+          overflow: visible;
+          width: 100%;
+        }
+        .grid line {
+          stroke: var(--divider-color);
+          stroke-width: 1;
+          vector-effect: non-scaling-stroke;
+        }
+        .area {
+          fill: color-mix(in srgb, var(--primary-color) 18%, transparent);
+        }
+        .line {
+          fill: none;
+          stroke: var(--primary-color);
+          stroke-linecap: round;
+          stroke-linejoin: round;
+          stroke-width: 3;
+          vector-effect: non-scaling-stroke;
+        }
+        .dots circle {
+          fill: var(--card-background-color);
+          stroke: var(--primary-color);
+          stroke-width: 2;
+          vector-effect: non-scaling-stroke;
+        }
+        .axis {
+          color: var(--secondary-text-color);
+          font-size: 11px;
+          margin-top: 4px;
+        }
+        .message {
+          color: var(--secondary-text-color);
+          padding: 42px 8px;
+          text-align: center;
+        }
+        @media (max-width: 500px) {
+          .header {
+            align-items: flex-start;
+          }
+          .line-chart {
+            height: 170px;
+          }
+        }
+      </style>
+      <ha-card>
+        <div class="header">
+          <h2>${escapeHtml(title)}</h2>
+          <a href="${escapeHtml(historyUrl)}">Full history →</a>
+        </div>
+        <div class="controls">
+          <label>
+            Start date
+            <input
+              class="start-date"
+              type="date"
+              value="${escapeHtml(this._startDate)}"
+              max="${dateInputValue(new Date())}"
+            />
+          </label>
+          <label>
+            End date
+            <input
+              class="end-date"
+              type="date"
+              value="${escapeHtml(this._endDate)}"
+              max="${dateInputValue(new Date())}"
+            />
+          </label>
+        </div>
+        ${body}
+      </ha-card>
+    `;
+
+    const changeRange = () => {
+      this._startDate = this.shadowRoot.querySelector(".start-date").value;
+      this._endDate = this.shadowRoot.querySelector(".end-date").value;
+      this._rows = null;
+      this._loadStatistics();
+    };
+    this.shadowRoot
+      .querySelector(".start-date")
+      ?.addEventListener("change", changeRange);
+    this.shadowRoot
+      .querySelector(".end-date")
+      ?.addEventListener("change", changeRange);
+  }
+}
+
 class OrionWaterMeterDashboardStrategy extends HTMLElement {
   static noEditor = true;
 
@@ -534,11 +988,27 @@ class OrionWaterMeterDashboardStrategy extends HTMLElement {
       .sort((left, right) => left.entity_id.localeCompare(right.entity_id));
 
     const cards = meters.length
-      ? meters.map((entity) => ({
-          type: `custom:${CARD_TYPE}`,
-          entity: entity.entity_id,
-          default_hours: 1,
-        }))
+      ? meters.map((entity) => {
+          const meterName =
+            hass.states[entity.entity_id]?.attributes?.friendly_name ||
+            entity.name ||
+            "Water meter";
+          return {
+            type: "vertical-stack",
+            cards: [
+              {
+                type: `custom:${CARD_TYPE}`,
+                entity: entity.entity_id,
+                default_hours: 1,
+              },
+              {
+                type: `custom:${HISTORY_CARD_TYPE}`,
+                title: `${meterName} usage history`,
+                entity: entity.entity_id,
+              },
+            ],
+          };
+        })
       : [
           {
             type: "markdown",
@@ -567,6 +1037,10 @@ if (!customElements.get(CARD_TYPE)) {
   customElements.define(CARD_TYPE, OrionWaterUsageCard);
 }
 
+if (!customElements.get(HISTORY_CARD_TYPE)) {
+  customElements.define(HISTORY_CARD_TYPE, OrionWaterHistoryCard);
+}
+
 const strategyElement = `ll-strategy-dashboard-${STRATEGY_TYPE}`;
 if (!customElements.get(strategyElement)) {
   customElements.define(strategyElement, OrionWaterMeterDashboardStrategy);
@@ -578,6 +1052,15 @@ if (!window.customCards.some((card) => card.type === CARD_TYPE)) {
     type: CARD_TYPE,
     name: "Orion Water Usage",
     description: "Water usage history with selectable time ranges.",
+    preview: false,
+  });
+}
+
+if (!window.customCards.some((card) => card.type === HISTORY_CARD_TYPE)) {
+  window.customCards.push({
+    type: HISTORY_CARD_TYPE,
+    name: "Orion Water History",
+    description: "Water usage line graph with an on-card date range.",
     preview: false,
   });
 }

@@ -12,7 +12,7 @@ from homeassistant.core import HomeAssistant
 from .const import DOMAIN
 
 FRONTEND_URL: Final = f"/{DOMAIN}/frontend/orion-water-meter.js"
-FRONTEND_VERSION: Final = "0.0.2"
+FRONTEND_VERSION: Final = "0.0.3"
 _REGISTERED: Final = "frontend_registered"
 
 
