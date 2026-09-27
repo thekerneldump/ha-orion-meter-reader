@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.0.5
+
+- Plot one line-graph point per recorded meter increase.
+- Omit unchanged polling intervals instead of displaying misleading zeroes.
+- Retain the latest interval-usage value until the meter reports a new reading.
+
 ## 0.0.4
 
 - Add a per-meter interval usage entity.

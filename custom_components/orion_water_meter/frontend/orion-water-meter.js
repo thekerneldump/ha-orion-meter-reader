@@ -682,10 +682,13 @@ class OrionWaterHistoryCard extends HTMLElement {
       this._rows = rawRows
         .map((row) => ({
           time: Number(row.start),
-          value: Math.max(0, Number(row.change)),
+          value: Number(row.change),
         }))
         .filter(
-          (row) => Number.isFinite(row.time) && Number.isFinite(row.value),
+          (row) =>
+            Number.isFinite(row.time) &&
+            Number.isFinite(row.value) &&
+            row.value > 0,
         );
       this._period = period;
       this._observedUpdate =
@@ -705,7 +708,7 @@ class OrionWaterHistoryCard extends HTMLElement {
 
   _renderLine(rows, start, end, unit) {
     if (!rows.length) {
-      return '<div class="message">No statistics are available for this date range yet.</div>';
+      return '<div class="message">No meter increases were recorded in this date range.</div>';
     }
 
     const width = 700;
@@ -778,19 +781,16 @@ class OrionWaterHistoryCard extends HTMLElement {
         `;
       })
       .join("");
-    const dots =
-      rows.length <= 120
-        ? rows
-            .map((row, index) => {
-              const point = points[index];
-              return `<circle cx="${point.x}" cy="${point.y}" r="2.5" />`;
-            })
-            .join("")
-        : "";
+    const dots = rows
+      .map((row, index) => {
+        const point = points[index];
+        return `<circle cx="${point.x}" cy="${point.y}" r="2.5" />`;
+      })
+      .join("");
 
     return `
       <div class="chart-heading">
-        <span>Water usage per ${escapeHtml(periodLabel(this._period))} interval</span>
+        <span>Water usage at each recorded update</span>
         <span class="muted">${escapeHtml(unit)}</span>
       </div>
       <div class="chart-shell">

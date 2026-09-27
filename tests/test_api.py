@@ -129,6 +129,35 @@ class IntervalUsageTests(unittest.TestCase):
             1.7,
         )
 
+    def test_retains_latest_usage_when_counter_is_unchanged(self):
+        readings = {"example-meter": {"reading": 1017}}
+        previous = {
+            "example-meter": {
+                "reading": 1017,
+                "interval_usage_gallons": 1.7,
+            }
+        }
+
+        result = helpers.add_interval_usage(readings, previous)
+
+        self.assertEqual(
+            result["example-meter"]["interval_usage_gallons"],
+            1.7,
+        )
+
+    def test_unchanged_first_reading_remains_without_interval(self):
+        readings = {"example-meter": {"reading": 1000}}
+        previous = {
+            "example-meter": {
+                "reading": 1000,
+                "interval_usage_gallons": None,
+            }
+        }
+
+        result = helpers.add_interval_usage(readings, previous)
+
+        self.assertIsNone(result["example-meter"]["interval_usage_gallons"])
+
     def test_rejects_negative_reset_delta(self):
         readings = {"example-meter": {"reading_gallons": 50.0}}
         previous = {"example-meter": {"reading_gallons": 100.0}}

@@ -57,21 +57,29 @@ def add_interval_usage(
     readings: dict[str, dict[str, Any]],
     previous: dict[str, dict[str, Any]] | None,
 ) -> dict[str, dict[str, Any]]:
-    """Add usage since the previous successful poll to each packet."""
+    """Add the latest usage delta while ignoring unchanged meter reports."""
     result: dict[str, dict[str, Any]] = {}
     previous = previous or {}
 
     for meter_id, reading in readings.items():
         packet = dict(reading)
         current_value = _reading_gallons(reading)
-        previous_value = _reading_gallons(previous.get(meter_id))
+        previous_packet = previous.get(meter_id)
+        previous_value = _reading_gallons(previous_packet)
         interval_usage = None
         if (
             current_value is not None
             and previous_value is not None
             and current_value >= previous_value
         ):
-            interval_usage = round(current_value - previous_value, 6)
+            if current_value == previous_value:
+                retained = (previous_packet or {}).get("interval_usage_gallons")
+                if isinstance(retained, (int, float)) and not isinstance(
+                    retained, bool
+                ):
+                    interval_usage = float(retained)
+            else:
+                interval_usage = round(current_value - previous_value, 6)
         packet["interval_usage_gallons"] = interval_usage
         result[meter_id] = packet
 
