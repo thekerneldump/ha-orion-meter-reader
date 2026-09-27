@@ -1,0 +1,47 @@
+{
+  "title": "Orion Water Meter",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to Orion Water Meter",
+        "description": "Enter the reader URL. Data comes from `/api/readings`.",
+        "data": {
+          "url": "Web interface URL",
+          "scan_interval": "Polling interval (seconds)"
+        }
+      },
+      "reconfigure": {
+        "title": "Reconfigure Orion Water Meter",
+        "description": "Update the web interface URL or polling interval.",
+        "data": {
+          "url": "Web interface URL",
+          "scan_interval": "Polling interval (seconds)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Unable to connect to the web interface",
+      "invalid_response": "The web interface returned an invalid response",
+      "invalid_url": "Enter a valid HTTP or HTTPS URL",
+      "unknown": "Unexpected error"
+    },
+    "abort": {
+      "already_configured": "This web interface is already configured",
+      "reconfigure_successful": "Configuration updated successfully"
+    }
+  },
+  "entity": {
+    "sensor": {
+      "total_water": { "name": "Total water" },
+      "usage_since_snapshot": { "name": "Usage since endpoint snapshot" },
+      "last_seen": { "name": "Last seen" },
+      "frequency": { "name": "Frequency" },
+      "signal_strength": { "name": "Signal strength" },
+      "signal_to_noise": { "name": "Signal-to-noise ratio" },
+      "noise": { "name": "Noise" }
+    },
+    "binary_sensor": {
+      "leak": { "name": "Leak" }
+    }
+  }
+}
