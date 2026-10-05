@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.0.9
+
+- Prevent concurrent integration entries from registering the dashboard route more than once.
+
 ## 0.0.8
 
 - Label dashboard meters with their friendly name and meter ID.
