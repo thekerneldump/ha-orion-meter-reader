@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.0.8
+
+- Label dashboard meters with their friendly name and meter ID.
+- Sort dashboard meters by friendly name.
+- Prevent state refreshes from interrupting dashboard date and range inputs.
+
 ## 0.0.7
 
 - Add configurable friendly names for discovered meter devices.

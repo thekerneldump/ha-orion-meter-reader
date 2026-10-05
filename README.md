@@ -69,6 +69,7 @@ After installing or updating the integration and restarting Home Assistant:
 
 Each card includes:
 
+- The configured meter friendly name with its meter ID in parentheses
 - Quick ranges for 30 minutes, 1 hour, 3 hours, 6 hours, 12 hours, 1 day,
   1 week, and 1 month
 - Editable start and end date-and-time fields

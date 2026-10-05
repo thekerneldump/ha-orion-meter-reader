@@ -132,6 +132,7 @@ class OrionWaterUsageCard extends HTMLElement {
     this._error = false;
     this._lastFetchAt = 0;
     this._observedUpdate = null;
+    this._renderedUpdate = undefined;
     this._requestSequence = 0;
   }
 
@@ -162,7 +163,9 @@ class OrionWaterUsageCard extends HTMLElement {
       this._loadHistory();
       return;
     }
-    this._render();
+    if (update !== this._renderedUpdate) {
+      this._render();
+    }
   }
 
   getCardSize() {
@@ -263,6 +266,7 @@ class OrionWaterUsageCard extends HTMLElement {
     }
 
     const state = this._hass?.states?.[this._config.entity];
+    this._renderedUpdate = state?.last_updated || null;
     const title =
       this._config.title ||
       state?.attributes?.friendly_name ||
@@ -582,6 +586,7 @@ class OrionWaterHistoryCard extends HTMLElement {
     this._requestSequence = 0;
     this._lastFetchAt = 0;
     this._observedUpdate = null;
+    this._renderedUpdate = undefined;
   }
 
   setConfig(config) {
@@ -629,7 +634,12 @@ class OrionWaterHistoryCard extends HTMLElement {
       this._loadStatistics();
       return;
     }
-    this._render();
+    if (
+      update !== this._renderedUpdate &&
+      !this.shadowRoot?.activeElement
+    ) {
+      this._render();
+    }
   }
 
   getCardSize() {
@@ -885,6 +895,7 @@ class OrionWaterHistoryCard extends HTMLElement {
     }
 
     const state = this._hass?.states?.[this._config.entity];
+    this._renderedUpdate = state?.last_updated || null;
     const title =
       this._config.title ||
       state?.attributes?.friendly_name ||
@@ -1219,7 +1230,7 @@ class OrionWaterHistoryCard extends HTMLElement {
 class OrionWaterMeterDashboardStrategy extends HTMLElement {
   static noEditor = true;
 
-  static registryDependencies = ["entities"];
+  static registryDependencies = ["entities", "devices"];
 
   static getCreateSuggestions() {
     return {
@@ -1229,9 +1240,13 @@ class OrionWaterMeterDashboardStrategy extends HTMLElement {
   }
 
   static async generate(config, hass) {
-    const registry = await hass.callWS({
-      type: "config/entity_registry/list",
-    });
+    const [registry, devices] = await Promise.all([
+      hass.callWS({ type: "config/entity_registry/list" }),
+      hass.callWS({ type: "config/device_registry/list" }),
+    ]);
+    const devicesById = new Map(
+      devices.map((device) => [device.id, device]),
+    );
     const meters = registry
       .filter(
         (entity) =>
@@ -1240,7 +1255,31 @@ class OrionWaterMeterDashboardStrategy extends HTMLElement {
           entity.unique_id?.endsWith("_reading_gallons") &&
           !entity.disabled_by,
       )
-      .sort((left, right) => left.entity_id.localeCompare(right.entity_id));
+      .map((entity) => {
+        const device = devicesById.get(entity.device_id);
+        const domainIdentifier = device?.identifiers?.find(
+          (identifier) =>
+            Array.isArray(identifier) && identifier[0] === DOMAIN,
+        );
+        const suffix = "_reading_gallons";
+        const uniqueStem = entity.unique_id.slice(0, -suffix.length);
+        const meterId = String(
+          domainIdentifier?.[1] || uniqueStem.split("_").at(-1),
+        );
+        const defaultDeviceName = `Orion meter ${meterId}`;
+        const configuredName = device?.name_by_user || device?.name;
+        const friendlyName =
+          configuredName && configuredName !== defaultDeviceName
+            ? configuredName
+            : "Orion meter";
+        return {
+          entity,
+          meterName: `${friendlyName} (${meterId})`,
+        };
+      })
+      .sort((left, right) =>
+        left.meterName.localeCompare(right.meterName),
+      );
     const intervalByDevice = new Map(
       registry
         .filter(
@@ -1255,16 +1294,13 @@ class OrionWaterMeterDashboardStrategy extends HTMLElement {
     );
 
     const cards = meters.length
-      ? meters.map((entity) => {
-          const meterName =
-            hass.states[entity.entity_id]?.attributes?.friendly_name ||
-            entity.name ||
-            "Water meter";
+      ? meters.map(({ entity, meterName }) => {
           return {
             type: "vertical-stack",
             cards: [
               {
                 type: `custom:${CARD_TYPE}`,
+                title: meterName,
                 entity: entity.entity_id,
                 default_hours: 1,
               },
