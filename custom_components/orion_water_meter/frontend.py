@@ -12,18 +12,35 @@ from homeassistant.core import HomeAssistant
 
 from .const import DOMAIN
 
-FRONTEND_URL: Final = f"/{DOMAIN}/frontend/orion-water-meter.js"
-FRONTEND_VERSION: Final = "0.0.9"
+FRONTEND_LOADER_URL: Final = f"/{DOMAIN}/frontend/orion-water-meter-loader.js"
+FRONTEND_IMPLEMENTATION_URL: Final = (
+    f"/{DOMAIN}/frontend/orion-water-meter.js"
+)
+FRONTEND_VERSION: Final = "0.0.10"
 _REGISTRATION_TASK: Final = "frontend_registration_task"
 
 
 async def _async_register_frontend(hass: HomeAssistant) -> None:
     """Register the static path and dashboard resource."""
-    frontend_file = Path(__file__).parent / "frontend" / "orion-water-meter.js"
+    frontend_dir = Path(__file__).parent / "frontend"
     await hass.http.async_register_static_paths(
-        [StaticPathConfig(FRONTEND_URL, str(frontend_file), False)]
+        [
+            StaticPathConfig(
+                FRONTEND_LOADER_URL,
+                str(frontend_dir / "orion-water-meter-loader.js"),
+                False,
+            ),
+            StaticPathConfig(
+                FRONTEND_IMPLEMENTATION_URL,
+                str(frontend_dir / "orion-water-meter.js"),
+                False,
+            ),
+        ]
     )
-    add_extra_js_url(hass, f"{FRONTEND_URL}?v={FRONTEND_VERSION}")
+    add_extra_js_url(
+        hass,
+        f"{FRONTEND_LOADER_URL}?v={FRONTEND_VERSION}",
+    )
 
 
 async def async_register_frontend(hass: HomeAssistant) -> None:

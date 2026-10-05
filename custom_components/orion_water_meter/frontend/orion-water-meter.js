@@ -1,7 +1,6 @@
 const DOMAIN = "orion_water_meter";
 const CARD_TYPE = "orion-water-usage-card";
 const HISTORY_CARD_TYPE = "orion-water-history-card";
-const STRATEGY_TYPE = "orion-water-meter";
 const DAY_MS = 24 * 60 * 60 * 1000;
 const HISTORY_DAYS = 7;
 
@@ -1350,11 +1349,6 @@ if (!customElements.get(HISTORY_CARD_TYPE)) {
   customElements.define(HISTORY_CARD_TYPE, OrionWaterHistoryCard);
 }
 
-const strategyElement = `ll-strategy-dashboard-${STRATEGY_TYPE}`;
-if (!customElements.get(strategyElement)) {
-  customElements.define(strategyElement, OrionWaterMeterDashboardStrategy);
-}
-
 window.customCards = window.customCards || [];
 if (!window.customCards.some((card) => card.type === CARD_TYPE)) {
   window.customCards.push({
@@ -1374,19 +1368,4 @@ if (!window.customCards.some((card) => card.type === HISTORY_CARD_TYPE)) {
   });
 }
 
-window.customStrategies = window.customStrategies || [];
-if (
-  !window.customStrategies.some(
-    (strategy) =>
-      strategy.type === STRATEGY_TYPE &&
-      strategy.strategyType === "dashboard",
-  )
-) {
-  window.customStrategies.push({
-    type: STRATEGY_TYPE,
-    strategyType: "dashboard",
-    name: "KD Water Meter",
-    description:
-      "Track Orion water usage, hourly pace, and rolling daily averages.",
-  });
-}
+export { OrionWaterMeterDashboardStrategy };

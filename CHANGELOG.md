@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.0.10
+
+- Register the dashboard strategy through a lightweight bootstrap module.
+- Load the full dashboard implementation after the strategy is registered.
+- Automatically recover once when Home Assistant loses the strategy-loading race.
+
 ## 0.0.9
 
 - Prevent concurrent integration entries from registering the dashboard route more than once.

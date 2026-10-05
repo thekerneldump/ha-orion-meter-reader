@@ -80,11 +80,13 @@ class FakeHttp:
 
     def __init__(self) -> None:
         self.calls = 0
+        self.configs = []
         self.started = asyncio.Event()
         self.release = asyncio.Event()
 
-    async def async_register_static_paths(self, _configs) -> None:
+    async def async_register_static_paths(self, configs) -> None:
         self.calls += 1
+        self.configs = configs
         self.started.set()
         await self.release.wait()
 
@@ -110,6 +112,7 @@ class FrontendRegistrationTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(hass.http.calls, 1)
         self.assertEqual(len(registered_urls), 1)
+        self.assertEqual(len(hass.http.configs), 2)
 
 
 if __name__ == "__main__":
