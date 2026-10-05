@@ -30,6 +30,10 @@ The Home Assistant host must be able to reach `<base-url>/api/readings`. The
 default polling interval is 15 seconds. The URL and interval can be changed later
 with **Reconfigure** on the integration entry.
 
+To give a discovered meter a friendly name, select **Configure** on the
+integration entry, choose the meter, and enter its name. Submit a blank name to
+restore the default. The integration reloads automatically after the change.
+
 ## Devices and entities
 
 The integration creates a web-interface hub device and one meter device for each

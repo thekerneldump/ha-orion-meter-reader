@@ -32,11 +32,19 @@ class OrionWaterMeterData:
 type OrionWaterMeterConfigEntry = ConfigEntry[OrionWaterMeterData]
 
 
+async def _async_reload_entry(
+    hass: HomeAssistant, entry: OrionWaterMeterConfigEntry
+) -> None:
+    """Reload the integration after its options change."""
+    await hass.config_entries.async_reload(entry.entry_id)
+
+
 async def async_setup_entry(
     hass: HomeAssistant, entry: OrionWaterMeterConfigEntry
 ) -> bool:
     """Set up Orion Water Meter from a config entry."""
     await async_register_frontend(hass)
+    entry.async_on_unload(entry.add_update_listener(_async_reload_entry))
 
     api = OrionWaterMeterApi(async_get_clientsession(hass), entry.data[CONF_URL])
     coordinator = OrionWaterMeterCoordinator(

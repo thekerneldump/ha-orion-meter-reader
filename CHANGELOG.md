@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.0.7
+
+- Add configurable friendly names for discovered meter devices.
+- Reload the integration automatically after a meter name changes.
+
 ## 0.0.6
 
 - Widen dashboard cards with a centered panel layout.

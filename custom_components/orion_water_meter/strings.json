@@ -30,6 +30,27 @@
       "reconfigure_successful": "Configuration updated successfully"
     }
   },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Name a water meter",
+        "description": "Choose a discovered meter to name.",
+        "data": {
+          "meter_id": "Water meter"
+        }
+      },
+      "meter": {
+        "title": "Set meter name",
+        "description": "Enter a friendly name for meter `{meter_id}`. Leave it blank to restore the default name.",
+        "data": {
+          "friendly_name": "Friendly name"
+        }
+      }
+    },
+    "abort": {
+      "no_meters": "No water meters have been discovered yet"
+    }
+  },
   "entity": {
     "sensor": {
       "total_water": { "name": "Total water" },

@@ -8,7 +8,7 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import OrionWaterMeterConfigEntry
-from .const import DOMAIN
+from .const import CONF_METER_NAMES, DOMAIN
 from .coordinator import OrionWaterMeterCoordinator
 
 
@@ -30,9 +30,13 @@ class OrionWaterMeterEntity(CoordinatorEntity[OrionWaterMeterCoordinator]):
 
         packet = self.packet
         model = packet.get("model") or "Orion Endpoint"
+        meter_names = entry.options.get(CONF_METER_NAMES, {})
+        friendly_name = (
+            meter_names.get(meter_id) if isinstance(meter_names, dict) else None
+        )
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, meter_id)},
-            name=f"Orion meter {meter_id}",
+            name=friendly_name or f"Orion meter {meter_id}",
             manufacturer="Badger Meter",
             model=str(model),
             via_device_id=data.hub_device_id,
