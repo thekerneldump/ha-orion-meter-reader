@@ -3,10 +3,10 @@
   "name": "Orion Water Meter",
   "codeowners": ["@thekerneldump"],
   "config_flow": true,
-  "dependencies": ["frontend", "http"],
+  "dependencies": ["frontend", "http", "recorder"],
   "documentation": "https://github.com/thekerneldump/ha-orion-meter-reader",
   "integration_type": "hub",
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/thekerneldump/ha-orion-meter-reader/issues",
-  "version": "0.0.10"
+  "version": "0.0.11-beta.1"
 }

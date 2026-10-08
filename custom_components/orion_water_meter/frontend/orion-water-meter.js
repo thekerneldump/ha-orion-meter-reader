@@ -2,6 +2,7 @@ const DOMAIN = "orion_water_meter";
 const CARD_TYPE = "orion-water-usage-card";
 const HISTORY_CARD_TYPE = "orion-water-history-card";
 const DAY_MS = 24 * 60 * 60 * 1000;
+const FIVE_MINUTES_MS = 5 * 60 * 1000;
 const HISTORY_DAYS = 7;
 
 const RANGES = [
@@ -568,6 +569,7 @@ function statisticsPeriod(start, end, now) {
 function periodLabel(period) {
   return {
     "5minute": "5-minute",
+    mixed: "hourly + 5-minute",
     hour: "hourly",
     day: "daily",
     week: "weekly",
@@ -678,30 +680,64 @@ class OrionWaterHistoryCard extends HTMLElement {
     this._render();
 
     try {
-      const result = await this._hass.callWS({
-        type: "recorder/statistics_during_period",
-        start_time: start.toISOString(),
-        end_time: end.toISOString(),
-        statistic_ids: [this._config.entity],
-        period,
-        types: ["change"],
-      });
+      const requestPeriod = (requestedPeriod) =>
+        this._hass.callWS({
+          type: "recorder/statistics_during_period",
+          start_time: start.toISOString(),
+          end_time: end.toISOString(),
+          statistic_ids: [this._config.entity],
+          period: requestedPeriod,
+          types: ["change"],
+        });
+      const results = [await requestPeriod(period)];
       if (sequence !== this._requestSequence) {
         return;
       }
-      const rawRows = result?.[this._config.entity] || [];
-      this._rows = rawRows
-        .map((row) => ({
+
+      const mapRows = (rawRows) =>
+        rawRows.map((row) => ({
           time: Number(row.start),
           value: Number(row.change),
-        }))
-        .filter(
+        }));
+      const primaryRawRows = results[0]?.[this._config.entity] || [];
+      const firstFineTime = Math.min(
+        ...primaryRawRows
+          .map((row) => Number(row.start))
+          .filter(Number.isFinite),
+        Number.POSITIVE_INFINITY,
+      );
+      if (
+        period === "5minute" &&
+        firstFineTime > start.getTime() + FIVE_MINUTES_MS
+      ) {
+        results.push(await requestPeriod("hour"));
+        if (sequence !== this._requestSequence) {
+          return;
+        }
+      }
+      const primaryRows = mapRows(primaryRawRows).filter(
+        (row) =>
+          Number.isFinite(row.time) &&
+          Number.isFinite(row.value) &&
+          row.value > 0,
+      );
+      if (period === "5minute") {
+        const hourlyRawRows = results[1]?.[this._config.entity] || [];
+        const hourlyRows = mapRows(hourlyRawRows).filter(
           (row) =>
             Number.isFinite(row.time) &&
             Number.isFinite(row.value) &&
-            row.value > 0,
+            row.value > 0 &&
+            row.time < firstFineTime,
         );
-      this._period = period;
+        this._rows = [...hourlyRows, ...primaryRows].sort(
+          (left, right) => left.time - right.time,
+        );
+        this._period = hourlyRows.length ? "mixed" : "5minute";
+      } else {
+        this._rows = primaryRows;
+        this._period = period;
+      }
       this._observedUpdate =
         this._hass.states[this._config.entity]?.last_updated || null;
       this._lastFetchAt = Date.now();

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
+import math
 from typing import Any
 from urllib.parse import urlsplit, urlunsplit
 
@@ -83,4 +85,74 @@ def add_interval_usage(
         packet["interval_usage_gallons"] = interval_usage
         result[meter_id] = packet
 
+    return result
+
+
+def _history_timestamp(packet: dict[str, Any]) -> datetime | None:
+    """Return a packet timestamp normalized to UTC."""
+    for key in ("ingested_at", "time"):
+        value = packet.get(key)
+        if not isinstance(value, str):
+            continue
+        try:
+            parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError:
+            continue
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=UTC)
+        return parsed.astimezone(UTC)
+    return None
+
+
+def build_hourly_history(
+    packets: list[dict[str, Any]],
+    cutoff: datetime,
+    ending_sum: float,
+) -> list[dict[str, Any]]:
+    """Convert retained packets into recorder-compatible hourly statistics."""
+    cutoff = cutoff.astimezone(UTC)
+    samples: dict[datetime, float] = {}
+    for packet in packets:
+        timestamp = _history_timestamp(packet)
+        reading = _reading_gallons(packet)
+        if (
+            timestamp is None
+            or timestamp >= cutoff
+            or reading is None
+            or not math.isfinite(reading)
+        ):
+            continue
+        samples[timestamp] = reading
+
+    ordered = sorted(samples.items())
+    if len(ordered) < 2:
+        return []
+
+    cumulative = 0.0
+    previous = ordered[0][1]
+    hourly: dict[datetime, tuple[float, float]] = {}
+    for timestamp, reading in ordered:
+        if reading >= previous:
+            cumulative += reading - previous
+        previous = reading
+        hour = timestamp.replace(minute=0, second=0, microsecond=0)
+        hourly[hour] = (reading, cumulative)
+
+    offset = float(ending_sum) - cumulative
+    first_hour = ordered[0][0].replace(minute=0, second=0, microsecond=0)
+    result: list[dict[str, Any]] = [
+        {
+            "start": first_hour - timedelta(hours=1),
+            "state": ordered[0][1],
+            "sum": offset,
+        }
+    ]
+    result.extend(
+        {
+            "start": hour,
+            "state": state,
+            "sum": offset + hour_sum,
+        }
+        for hour, (state, hour_sum) in sorted(hourly.items())
+    )
     return result

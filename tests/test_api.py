@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib.util
 import sys
 import unittest
+from datetime import datetime
 from pathlib import Path
 from types import ModuleType
 
@@ -37,6 +38,7 @@ helpers = _load_module("orion_water_meter_helpers", "helpers.py")
 class FakeResponse:
     def __init__(self, payload):
         self.payload = payload
+        self.content_length = None
 
     async def __aenter__(self):
         return self
@@ -50,13 +52,18 @@ class FakeResponse:
     async def json(self, **_kwargs):
         return self.payload
 
+    async def text(self):
+        return self.payload
+
 
 class FakeSession:
     def __init__(self, payload):
         self.payload = payload
         self.requested_url = None
+        self.get_calls = 0
 
     def get(self, url):
+        self.get_calls += 1
         self.requested_url = url
         return FakeResponse(self.payload)
 
@@ -84,6 +91,34 @@ class ApiTests(unittest.IsolatedAsyncioTestCase):
 
         with self.assertRaises(api.OrionWaterMeterInvalidResponse):
             await client.async_readings()
+
+    async def test_reads_and_caches_meter_history(self):
+        body = "\n".join(
+            (
+                '{"protocol":290,"id":42,"reading":100}',
+                '{"protocol":290,"id":43,"reading":200}',
+                '{"protocol":383,"id":42,"reading":300}',
+            )
+        )
+        session = FakeSession(body)
+        client = api.OrionWaterMeterApi(session, "http://reader:8083")
+
+        first = await client.async_history("42")
+        second = await client.async_history("42")
+
+        self.assertEqual(first, [{"protocol": 290, "id": 42, "reading": 100}])
+        self.assertEqual(second, first)
+        self.assertEqual(session.get_calls, 1)
+        self.assertEqual(
+            session.requested_url,
+            "http://reader:8083/files/neighbor-discovery.jsonl",
+        )
+
+    async def test_rejects_unsafe_history_filename(self):
+        client = api.OrionWaterMeterApi(FakeSession(""), "http://reader:8083")
+
+        with self.assertRaises(api.OrionWaterMeterInvalidResponse):
+            await client.async_history("42", "../private.jsonl")
 
 
 class UrlTests(unittest.TestCase):
@@ -165,6 +200,40 @@ class IntervalUsageTests(unittest.TestCase):
         result = helpers.add_interval_usage(readings, previous)
 
         self.assertIsNone(result["example-meter"]["interval_usage_gallons"])
+
+
+class HistoricalStatisticsTests(unittest.TestCase):
+    def test_builds_hourly_history_ending_at_existing_sum(self):
+        cutoff = datetime.fromisoformat("2026-10-08T12:00:00+00:00")
+        packets = [
+            {"time": "2026-10-08T09:10:00", "reading": 1000},
+            {"time": "2026-10-08T09:50:00", "reading": 1010},
+            {"time": "2026-10-08T10:20:00", "reading": 1040},
+            {"time": "2026-10-08T12:00:00", "reading": 9999},
+        ]
+
+        result = helpers.build_hourly_history(packets, cutoff, 7.0)
+
+        self.assertEqual(len(result), 3)
+        self.assertEqual(result[0]["start"].hour, 8)
+        self.assertEqual(result[0]["sum"], 3.0)
+        self.assertEqual(result[1]["state"], 101.0)
+        self.assertEqual(result[-1]["state"], 104.0)
+        self.assertEqual(result[-1]["sum"], 7.0)
+
+    def test_deduplicates_packets_and_ignores_counter_resets(self):
+        cutoff = datetime.fromisoformat("2026-10-08T12:00:00+00:00")
+        packets = [
+            {"time": "2026-10-08T09:00:00", "reading": 100},
+            {"time": "2026-10-08T09:00:00", "reading": 100},
+            {"time": "2026-10-08T10:00:00", "reading": 90},
+            {"time": "2026-10-08T11:00:00", "reading": 100},
+        ]
+
+        result = helpers.build_hourly_history(packets, cutoff, 0.0)
+
+        self.assertEqual(result[-1]["sum"], 0.0)
+        self.assertEqual(result[0]["sum"], -1.0)
 
 
 if __name__ == "__main__":
