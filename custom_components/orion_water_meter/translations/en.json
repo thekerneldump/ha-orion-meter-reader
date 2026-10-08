@@ -33,6 +33,13 @@
   "options": {
     "step": {
       "init": {
+        "title": "Configure Orion Water Meter",
+        "menu_options": {
+          "select_meter": "Meter names",
+          "history": "Historical backfill"
+        }
+      },
+      "select_meter": {
         "title": "Name a water meter",
         "description": "Choose a discovered meter to name.",
         "data": {
@@ -44,6 +51,13 @@
         "description": "Enter a friendly name for meter `{meter_id}`. Leave it blank to restore the default name.",
         "data": {
           "friendly_name": "Friendly name"
+        }
+      },
+      "history": {
+        "title": "Historical backfill",
+        "description": "Import retained reader packets once for each discovered meter. Successful imports are not repeated after reloads or restarts.",
+        "data": {
+          "history_backfill": "Enable historical backfill"
         }
       }
     },

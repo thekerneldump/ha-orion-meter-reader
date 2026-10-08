@@ -20,6 +20,7 @@ from homeassistant.util.dt import parse_datetime
 
 from . import OrionWaterMeterConfigEntry
 from .api import OrionReading
+from .const import CONF_HISTORY_BACKFILL
 from .entity import OrionWaterMeterEntity
 from .history import async_backfill_history
 
@@ -185,13 +186,17 @@ class OrionWaterMeterSensor(OrionWaterMeterEntity, SensorEntity):
     ) -> None:
         super().__init__(entry, meter_id, description.key)
         self._config_entry_id = entry.entry_id
+        self._history_backfill_enabled = bool(
+            entry.options.get(CONF_HISTORY_BACKFILL, False)
+        )
         self.entity_description = description
 
     async def async_added_to_hass(self) -> None:
         """Start a safe historical backfill for the cumulative sensor."""
         await super().async_added_to_hass()
         if (
-            self.entity_description.key == "reading_gallons"
+            self._history_backfill_enabled
+            and self.entity_description.key == "reading_gallons"
             and self.entity_id is not None
         ):
             self.hass.async_create_background_task(

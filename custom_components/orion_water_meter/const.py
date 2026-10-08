@@ -11,6 +11,7 @@ CONF_SCAN_INTERVAL: Final = "scan_interval"
 CONF_METER_ID: Final = "meter_id"
 CONF_METER_NAMES: Final = "meter_names"
 CONF_FRIENDLY_NAME: Final = "friendly_name"
+CONF_HISTORY_BACKFILL: Final = "history_backfill"
 
 DEFAULT_URL: Final = "http://orion-reader.local:8083"
 DEFAULT_SCAN_INTERVAL: Final = 15

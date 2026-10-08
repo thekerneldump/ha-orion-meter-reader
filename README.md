@@ -41,12 +41,13 @@ endpoint ID returned by the API. New endpoint IDs are discovered automatically.
 
 When a newly discovered meter has older packets in the reader's
 `neighbor-discovery.jsonl` file, the integration imports the retained hours that
-precede Home Assistant's existing statistics. The import is idempotent and does
-not overwrite newer five-minute recorder data. A successful import is marked
-complete so future integration reloads do not repeatedly download or process
-the history file. The dashboard combines the hourly backfill with live
-five-minute statistics; a meter that has not yet been rediscovered is imported
-when it first appears in `/api/readings`.
+precede Home Assistant's existing statistics when **Historical backfill** is
+enabled under **Configure**. It is disabled by default. The import is
+idempotent and does not overwrite newer five-minute recorder data. A successful
+import is marked complete so future integration reloads do not repeatedly
+download or process the history file. The dashboard combines the hourly
+backfill with live five-minute statistics; a meter that has not yet been
+rediscovered is imported when it first appears in `/api/readings`.
 
 Each meter provides:
 

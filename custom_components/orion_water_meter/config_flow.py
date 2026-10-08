@@ -24,6 +24,7 @@ from .api import (
 )
 from .const import (
     CONF_FRIENDLY_NAME,
+    CONF_HISTORY_BACKFILL,
     CONF_METER_ID,
     CONF_METER_NAMES,
     CONF_SCAN_INTERVAL,
@@ -178,6 +179,15 @@ class OrionWaterMeterOptionsFlow(OptionsFlow):
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
+        """Choose an integration option to configure."""
+        return self.async_show_menu(
+            step_id="init",
+            menu_options=["select_meter", "history"],
+        )
+
+    async def async_step_select_meter(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
         """Choose the discovered meter to name."""
         meter_ids = sorted(self.config_entry.runtime_data.coordinator.data)
         if not meter_ids:
@@ -202,6 +212,29 @@ class OrionWaterMeterOptionsFlow(OptionsFlow):
                     vol.Required(CONF_METER_ID): SelectSelector(
                         SelectSelectorConfig(options=options)
                     )
+                }
+            ),
+        )
+
+    async def async_step_history(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Configure one-time historical statistics backfills."""
+        if user_input is not None:
+            options = dict(self.config_entry.options)
+            options[CONF_HISTORY_BACKFILL] = user_input[CONF_HISTORY_BACKFILL]
+            return self.async_create_entry(title="", data=options)
+
+        return self.async_show_form(
+            step_id="history",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_HISTORY_BACKFILL,
+                        default=self.config_entry.options.get(
+                            CONF_HISTORY_BACKFILL, False
+                        ),
+                    ): bool
                 }
             ),
         )
