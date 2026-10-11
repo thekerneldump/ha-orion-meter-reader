@@ -6,12 +6,12 @@ const FIVE_MINUTES_MS = 5 * 60 * 1000;
 const HISTORY_DAYS = 7;
 
 const RANGES = [
-  { hours: 0.5, label: "30m", bucketMinutes: 5 },
-  { hours: 1, label: "1h", bucketMinutes: 5 },
-  { hours: 3, label: "3h", bucketMinutes: 15 },
-  { hours: 6, label: "6h", bucketMinutes: 30 },
-  { hours: 12, label: "12h", bucketMinutes: 60 },
-  { hours: 24, label: "24h", bucketMinutes: 60 },
+  { hours: 0.5, label: "30m" },
+  { hours: 1, label: "1h" },
+  { hours: 3, label: "3h" },
+  { hours: 6, label: "6h" },
+  { hours: 12, label: "12h" },
+  { hours: 24, label: "24h" },
 ];
 
 function escapeHtml(value) {
@@ -88,27 +88,6 @@ function positiveUsage(points) {
     }
   }
   return usage;
-}
-
-function usageBuckets(points, start, end, bucketMinutes) {
-  const bucketMs = bucketMinutes * 60 * 1000;
-  const count = Math.ceil((end - start) / bucketMs);
-  const buckets = Array.from({ length: count }, () => 0);
-  const selected = rangePoints(points, start, end);
-
-  for (let index = 1; index < selected.length; index += 1) {
-    const point = selected[index];
-    const delta = point.value - selected[index - 1].value;
-    if (delta < 0 || point.time <= start) {
-      continue;
-    }
-    const bucket = Math.min(
-      count - 1,
-      Math.floor((point.time - start) / bucketMs),
-    );
-    buckets[bucket] += delta;
-  }
-  return buckets;
 }
 
 function formatVolume(value, unit) {
@@ -221,45 +200,6 @@ class OrionWaterUsageCard extends HTMLElement {
     return positiveUsage(rangePoints(points, start, now)) / HISTORY_DAYS;
   }
 
-  _renderChart(buckets, start, end, bucketMinutes, unit) {
-    const maximum = Math.max(...buckets, 0);
-    const formatter = new Intl.DateTimeFormat(undefined, {
-      hour: "numeric",
-      minute: "2-digit",
-      timeZone: this._hass?.config?.time_zone,
-    });
-    const bars = buckets
-      .map((value, index) => {
-        const height = maximum > 0 ? Math.max(2, (value / maximum) * 100) : 2;
-        const bucketTime = new Date(
-          start + index * bucketMinutes * 60 * 1000,
-        );
-        const label = `${formatter.format(bucketTime)}: ${formatVolume(
-          value,
-          unit,
-        )}`;
-        return `<div class="bar-wrap" title="${escapeHtml(label)}">
-          <div class="bar" style="height: ${height}%"></div>
-        </div>`;
-      })
-      .join("");
-
-    return `
-      <div class="chart-heading">
-        <span>Usage by ${bucketMinutes} minute${bucketMinutes === 1 ? "" : "s"}</span>
-        <span class="muted">max ${escapeHtml(formatVolume(maximum, unit))}</span>
-      </div>
-      <div class="chart" role="img" aria-label="Water usage bar chart">
-        ${bars}
-      </div>
-      <div class="axis">
-        <span>${escapeHtml(formatter.format(new Date(start)))}</span>
-        <span>${escapeHtml(formatter.format(new Date((start + end) / 2)))}</span>
-        <span>${escapeHtml(formatter.format(new Date(end)))}</span>
-      </div>
-    `;
-  }
-
   _render() {
     if (!this.shadowRoot || !this._config) {
       return;
@@ -284,13 +224,6 @@ class OrionWaterUsageCard extends HTMLElement {
     const hourlyPace =
       usage === null ? null : usage / selectedRange.hours;
     const dailyAverage = this._dailyAverage(points, now);
-    const buckets = usageBuckets(
-      points,
-      start,
-      now,
-      selectedRange.bucketMinutes,
-    );
-
     const buttons = RANGES.map(
       (range) =>
         `<button
@@ -331,13 +264,6 @@ class OrionWaterUsageCard extends HTMLElement {
             <strong>${escapeHtml(formatVolume(dailyAverage, unit))}</strong>
           </div>
         </div>
-        ${this._renderChart(
-          buckets,
-          start,
-          now,
-          selectedRange.bucketMinutes,
-          unit,
-        )}
         <div class="footer">
           <span>Total meter reading</span>
           <span>${escapeHtml(formatVolume(numericState(state.state), unit))}</span>
@@ -424,47 +350,10 @@ class OrionWaterUsageCard extends HTMLElement {
           text-overflow: ellipsis;
           white-space: nowrap;
         }
-        .chart-heading,
-        .axis,
         .footer {
           display: flex;
           justify-content: space-between;
           gap: 8px;
-        }
-        .chart-heading {
-          color: var(--primary-text-color);
-          font-size: 14px;
-          margin-bottom: 8px;
-        }
-        .chart {
-          align-items: end;
-          border-bottom: 1px solid var(--divider-color);
-          display: flex;
-          gap: 4px;
-          height: 150px;
-        }
-        .bar-wrap {
-          align-items: end;
-          display: flex;
-          flex: 1;
-          height: 100%;
-          min-width: 2px;
-        }
-        .bar {
-          background: linear-gradient(
-            180deg,
-            var(--primary-color),
-            var(--light-primary-color, var(--primary-color))
-          );
-          border-radius: 4px 4px 0 0;
-          min-height: 2px;
-          transition: height 180ms ease;
-          width: 100%;
-        }
-        .axis {
-          color: var(--secondary-text-color);
-          font-size: 11px;
-          margin-top: 5px;
         }
         .footer {
           border-top: 1px solid var(--divider-color);
@@ -487,9 +376,6 @@ class OrionWaterUsageCard extends HTMLElement {
           }
           .stats {
             grid-template-columns: 1fr;
-          }
-          .chart {
-            height: 120px;
           }
         }
       </style>

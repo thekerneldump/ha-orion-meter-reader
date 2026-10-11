@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.0.12
+
+- Remove the redundant bar chart from dashboard strategy usage summaries.
+
+## 0.0.11
+
+- Add an optional historical-statistics backfill setting to the integration options.
+- Import historical meter readings into Home Assistant statistics only when explicitly requested.
+
 ## 0.0.10
 
 - Register the dashboard strategy through a lightweight bootstrap module.
